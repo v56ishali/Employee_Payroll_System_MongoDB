@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ex. No: 7 – MongoDB Aggregate Functions – Employee Payroll System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --green: #3fb950;
+      --cyan: #79c0ff;
+      --yellow: #e3b341;
+      --orange: #ff7b72;
+      --purple: #d2a8ff;
+      --pink: #f778ba;
+      --text: #c9d1d9;
+      --text-dim: #8b949e;
+      --white: #f0f6fc;
+      --accent: #58a6ff;
+      --tag-bg: #1f3140;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      padding: 32px 16px 64px;
+    }
+
+    /* ── Header ── */
+    .header {
+      max-width: 900px;
+      margin: 0 auto 36px;
+      background: linear-gradient(135deg, #1a2332 0%, #0d1117 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 36px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .header-badge {
+      background: linear-gradient(135deg, #1f6feb, #388bfd);
+      border-radius: 12px;
+      padding: 14px 20px;
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(56,139,253,0.35);
+    }
+    .header h1 {
+      font-size: clamp(16px, 3vw, 22px);
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1.3;
+    }
+    .header p {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
+
+    /* ── Wrapper ── */
+    .wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    /* ── Step card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 22px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .step-num {
+      background: linear-gradient(135deg, #238636, #3fb950);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: .5px;
+    }
+    .card-header h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--white);
+    }
+    .card-body { padding: 22px; }
+
+    /* ── Command block ── */
+    .cmd {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+      color: var(--cyan);
+      margin-bottom: 18px;
+    }
+    .cmd .prompt { color: var(--text-dim); }
+    .cmd .keyword { color: var(--orange); }
+    .cmd .fn { color: var(--yellow); }
+    .cmd .str { color: var(--green); }
+    .cmd .num { color: var(--purple); }
+    .cmd .field { color: var(--pink); }
+    .cmd .op { color: var(--accent); }
+
+    /* ── Result label ── */
+    .result-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--green);
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .result-label::before {
+      content: '';
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    /* ── Table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+    }
+    thead tr th {
+      background: var(--surface2);
+      color: var(--cyan);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      letter-spacing: .4px;
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    tbody tr:hover { background: #1c2330; }
+    tbody tr:last-child { border-bottom: none; }
+    td { padding: 10px 16px; color: var(--text); }
+    td.emp   { color: var(--yellow); font-weight: 600; }
+    td.dept  { color: var(--purple); }
+    td.num   { color: var(--green);  text-align: right; font-weight: 500; }
+    td.label { color: var(--orange); font-weight: 600; }
+
+    /* ── Notice ── */
+    .notice {
+      display: flex; align-items: center; gap: 10px;
+      background: #1a2f1a;
+      border: 1px solid #2ea04350;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--green);
+      margin-top: 14px;
+    }
+
+    /* ── Sub query title ── */
+    .qheader {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .qnum {
+      background: var(--tag-bg);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 20px;
+      border: 1px solid #1f3140;
+    }
+    .qtitle {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    .divider { height: 1px; background: var(--border); margin: 22px 0; }
+
+    /* ── Footer ── */
+    .footer {
+      max-width: 900px;
+      margin: 36px auto 0;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .success-banner {
+      background: linear-gradient(135deg, #1a3323,#142b1c);
+      border: 1px solid var(--green);
+      border-radius: 12px;
+      padding: 18px 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--green);
+      box-shadow: 0 0 30px #3fb95020;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────── -->
+<div class="header">
+  <div class="header-badge">Ex. No: 7</div>
+  <div>
+    <h1>Apply MongoDB Aggregate Functions to Analyse the Employee Payroll System</h1>
+    <p>Database: <code>payrollDB</code> &nbsp;|&nbsp; Collection: <code>employees</code> &nbsp;|&nbsp; 5 Documents &nbsp;|&nbsp; 6 Aggregate Queries</p>
+  </div>
+</div>
+
+<div class="wrapper">
+
+  <!-- ── STEP 1 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="step-num">STEP 1</span>
+      <h2>Create Database and Collection</h2>
+    </div>
+    <div class="card-body">
+      <div class="cmd">
+        <span class="prompt">mongosh&gt;&nbsp;</span><span class="keyword">use</span> payrollDB;<br/>
+        <span class="prompt">mongosh&gt;&nbsp;</span>db.<span class="fn">createCollection</span>(<span class="str">"employees"</span>);
+      </div>
+      <div class="notice">✔ Database <strong>payrollDB</strong> created &amp; <strong>employees</strong> collection initialised.</div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="step-num">STEP 2</span>
+      <h2>Insert Sample Documents</h2>
+    </div>
+    <div class="card-body">
+      <div class="cmd">
+        <span class="prompt">mongosh&gt;&nbsp;</span>db.employees.<span class="fn">insertMany</span>([<br/>
+        &nbsp;&nbsp;{&nbsp;<span class="field">emp_id</span>:<span class="str">"E101"</span>, <span class="field">name</span>:<span class="str">"John"</span>,&nbsp; <span class="field">department</span>:<span class="str">"HR"</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="field">basic_salary</span>:<span class="num">45000</span>, <span class="field">hra</span>:<span class="num">8000</span>,&nbsp; <span class="field">allowances</span>:<span class="num">3000</span> },<br/>
+        &nbsp;&nbsp;{&nbsp;<span class="field">emp_id</span>:<span class="str">"E102"</span>, <span class="field">name</span>:<span class="str">"Mary"</span>,&nbsp; <span class="field">department</span>:<span class="str">"IT"</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="field">basic_salary</span>:<span class="num">60000</span>, <span class="field">hra</span>:<span class="num">10000</span>, <span class="field">allowances</span>:<span class="num">5000</span> },<br/>
+        &nbsp;&nbsp;{&nbsp;<span class="field">emp_id</span>:<span class="str">"E103"</span>, <span class="field">name</span>:<span class="str">"Sam"</span>,&nbsp;&nbsp; <span class="field">department</span>:<span class="str">"Finance"</span>, <span class="field">basic_salary</span>:<span class="num">55000</span>, <span class="field">hra</span>:<span class="num">9000</span>,&nbsp; <span class="field">allowances</span>:<span class="num">4000</span> },<br/>
+        &nbsp;&nbsp;{&nbsp;<span class="field">emp_id</span>:<span class="str">"E104"</span>, <span class="field">name</span>:<span class="str">"David"</span>, <span class="field">department</span>:<span class="str">"IT"</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="field">basic_salary</span>:<span class="num">65000</span>, <span class="field">hra</span>:<span class="num">11000</span>, <span class="field">allowances</span>:<span class="num">7000</span> },<br/>
+        &nbsp;&nbsp;{&nbsp;<span class="field">emp_id</span>:<span class="str">"E105"</span>, <span class="field">name</span>:<span class="str">"Rose"</span>,&nbsp; <span class="field">department</span>:<span class="str">"HR"</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="field">basic_salary</span>:<span class="num">48000</span>, <span class="field">hra</span>:<span class="num">8500</span>,&nbsp; <span class="field">allowances</span>:<span class="num">3500</span> },<br/>
+        ]);
+      </div>
+      <div class="result-label">Result Output</div>
+      <table>
+        <thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th class="num">Basic Salary (₹)</th><th class="num">HRA (₹)</th><th class="num">Allowances (₹)</th></tr></thead>
+        <tbody>
+          <tr><td class="emp">E101</td><td>John</td><td class="dept">HR</td><td class="num">45,000</td><td class="num">8,000</td><td class="num">3,000</td></tr>
+          <tr><td class="emp">E102</td><td>Mary</td><td class="dept">IT</td><td class="num">60,000</td><td class="num">10,000</td><td class="num">5,000</td></tr>
+          <tr><td class="emp">E103</td><td>Sam</td><td class="dept">Finance</td><td class="num">55,000</td><td class="num">9,000</td><td class="num">4,000</td></tr>
+          <tr><td class="emp">E104</td><td>David</td><td class="dept">IT</td><td class="num">65,000</td><td class="num">11,000</td><td class="num">7,000</td></tr>
+          <tr><td class="emp">E105</td><td>Rose</td><td class="dept">HR</td><td class="num">48,000</td><td class="num">8,500</td><td class="num">3,500</td></tr>
+        </tbody>
+      </table>
+      <div class="notice">✔ 5 documents inserted successfully.</div>
+    </div>
+  </div>
+
+  <!-- ── STEP 3 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="step-num">STEP 3</span>
+      <h2>Apply Aggregate Queries</h2>
+    </div>
+    <div class="card-body">
+
+      <!-- i -->
+      <div class="qheader"><span class="qnum">i</span><span class="qtitle">Calculate Total Salary of Each Employee</span></div>
+      <div class="cmd">
+        db.employees.<span class="fn">aggregate</span>([<br/>
+        &nbsp;&nbsp;{<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="op">$project</span>: {<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name: <span class="num">1</span>, department: <span class="num">1</span>,<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;total_salary: {&nbsp;<span class="op">$sum</span>: [<span class="str">"$basic_salary"</span>, <span class="str">"$hra"</span>, <span class="str">"$allowances"</span>] }<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+        &nbsp;&nbsp;}<br/>
+        ]);
+      </div>
+      <div class="result-label">Result Output</div>
+      <table>
+        <thead><tr><th>Name</th><th>Department</th><th class="num">Total Salary (₹)</th></tr></thead>
+        <tbody>
+          <tr><td>John</td><td class="dept">HR</td><td class="num">56,000</td></tr>
+          <tr><td>Mary</td><td class="dept">IT</td><td class="num">75,000</td></tr>
+          <tr><td>Sam</td><td class="dept">Finance</td><td class="num">68,000</td></tr>
+          <tr><td>David</td><td class="dept">IT</td><td class="num">83,000</td></tr>
+          <tr><td>Rose</td><td class="dept">HR</td><td class="num">60,000</td></tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <!-- ii -->
+      <div class="qheader"><span class="qnum">ii</span><span class="qtitle">Find Total Salary Paid by the Organization</span></div>
+      <div class="cmd">
+        db.employees.<span class="fn">aggregate</span>([<br/>
+        &nbsp;&nbsp;{<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="op">$group</span>: {<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_id: <span class="str">"Total Salary"</span>,<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;total_paid: {&nbsp;<span class="op">$sum</span>: {&nbsp;<span class="op">$sum</span>: [<span class="str">"$basic_salary"</span>, <span class="str">"$hra"</span>, <span class="str">"$allowances"</span>] } }<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+        &nbsp;&nbsp;}<br/>
+        ]);
+      </div>
+      <div class="result-label">Result Output</div>
+      <table>
+        <thead><tr><th>_id</th><th class="num">total_paid (₹)</th></tr></thead>
+        <tbody>
+          <tr><td class="label">Total Salary</td><td class="num">3,42,000</td></tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <!-- iii -->
+      <div class="qheader"><span class="qnum">iii</span><span class="qtitle">Department-wise Average Salary</span></div>
+      <div class="cmd">
+        db.employees.<span class="fn">aggregate</span>([<br/>
+        &nbsp;&nbsp;{<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="op">$group</span>: {<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_id: <span class="str">"$department"</span>,<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;avg_basic_salary: {&nbsp;<span class="op">$avg</span>: <span class="str">"$basic_salary"</span> }<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+        &nbsp;&nbsp;}<br/>
+        ]);
+      </div>
+      <div class="result-label">Result Output</div>
+      <table>
+        <thead><tr><th>_id (Department)</th><th class="num">avg_basic_salary (₹)</th></tr></thead>
+        <tbody>
+          <tr><td class="dept">Finance</td><td class="num">55,000.00</td></tr>
+          <tr><td class="dept">HR</td><td class="num">46,500.00</td></tr>
+          <tr><td class="dept">IT</td><td class="num">62,500.00</td></tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <!-- iv -->
+      <div class="qheader"><span class="qnum">iv</span><span class="qtitle">Highest and Lowest Salary in Each Department</span></div>
+      <div class="cmd">
+        db.employees.<span class="fn">aggregate</span>([<br/>
+        &nbsp;&nbsp;{<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="op">$group</span>: {<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_id: <span class="str">"$department"</span>,<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;max_salary: {&nbsp;<span class="op">$max</span>: <span class="str">"$basic_salary"</span> },<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;min_salary: {&nbsp;<span class="op">$min</span>: <span class="str">"$basic_salary"</span> }<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+        &nbsp;&nbsp;}<br/>
+        ]);
+      </div>
+      <div class="result-label">Result Output</div>
+      <table>
+        <thead><tr><th>_id (Department)</th><th class="num">max_salary (₹)</th><th class="num">min_salary (₹)</th></tr></thead>
+        <tbody>
+          <tr><td class="dept">Finance</td><td class="num">55,000</td><td class="num">55,000</td></tr>
+          <tr><td class="dept">HR</td><td class="num">48,000</td><td class="num">45,000</td></tr>
+          <tr><td class="dept">IT</td><td class="num">65,000</td><td class="num">60,000</td></tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <!-- v -->
+      <div class="qheader"><span class="qnum">v</span><span class="qtitle">Count Number of Employees in Each Department</span></div>
+      <div class="cmd">
+        db.employees.<span class="fn">aggregate</span>([<br/>
+        &nbsp;&nbsp;{<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="op">$group</span>: {<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_id: <span class="str">"$department"</span>,<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;emp_count: {&nbsp;<span class="op">$count</span>: {} }<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+        &nbsp;&nbsp;}<br/>
+        ]);
+      </div>
+      <div class="result-label">Result Output</div>
+      <table>
+        <thead><tr><th>_id (Department)</th><th class="num">emp_count</th></tr></thead>
+        <tbody>
+          <tr><td class="dept">Finance</td><td class="num">1</td></tr>
+          <tr><td class="dept">HR</td><td class="num">2</td></tr>
+          <tr><td class="dept">IT</td><td class="num">2</td></tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <!-- vi -->
+      <div class="qheader"><span class="qnum">vi</span><span class="qtitle">Sort Employees by Salary (Descending)</span></div>
+      <div class="cmd">
+        db.employees.<span class="fn">aggregate</span>([<br/>
+        &nbsp;&nbsp;{&nbsp;<span class="op">$sort</span>: { basic_salary: <span class="num">-1</span> } }<br/>
+        ]);
+      </div>
+      <div class="result-label">Result Output</div>
+      <table>
+        <thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th class="num">Basic Salary (₹)</th></tr></thead>
+        <tbody>
+          <tr><td class="emp">E104</td><td>David</td><td class="dept">IT</td><td class="num">65,000</td></tr>
+          <tr><td class="emp">E102</td><td>Mary</td><td class="dept">IT</td><td class="num">60,000</td></tr>
+          <tr><td class="emp">E103</td><td>Sam</td><td class="dept">Finance</td><td class="num">55,000</td></tr>
+          <tr><td class="emp">E105</td><td>Rose</td><td class="dept">HR</td><td class="num">48,000</td></tr>
+          <tr><td class="emp">E101</td><td>John</td><td class="dept">HR</td><td class="num">45,000</td></tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ── FOOTER ── -->
+<div class="footer" style="margin-top:36px;">
+  <div class="success-banner">
+    ✔ &nbsp;All MongoDB Aggregate Queries Executed Successfully!
+  </div>
+  <p style="margin-top:16px; font-size:12px;">Ex. No: 7 &nbsp;|&nbsp; Apply MongoDB Aggregate Functions to Analyse the Employee Payroll System</p>
+</div>
+
+</body>
+</html>
